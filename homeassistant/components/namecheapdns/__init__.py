@@ -58,15 +58,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def _update_namecheapdns(session, host, domain, password):
     """Update namecheap DNS entry."""
-    params = {"host": host, "domain": domain, "password": password}
+    
+    host_value = host.split(",")
+    
+    for h in host_value:
+        params = {"host": h, "domain": domain, "password": password}
+        resp = await session.get(UPDATE_URL, params=params)
+        xml_string = await resp.text()
+        root = ET.fromstring(xml_string)
+        err_count = root.find("ErrCount").text
 
-    resp = await session.get(UPDATE_URL, params=params)
-    xml_string = await resp.text()
-    root = ET.fromstring(xml_string)
-    err_count = root.find("ErrCount").text
-
-    if int(err_count) != 0:
-        _LOGGER.warning("Updating namecheap domain failed: %s", domain)
-        return False
+        if int(err_count) != 0:
+            _LOGGER.warning("Updating namecheap domain %s failed for host: %s", domain, h)
+            return False
 
     return True
